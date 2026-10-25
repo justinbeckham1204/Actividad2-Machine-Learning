@@ -292,6 +292,7 @@ src/carga_datos/reportes/
 
 - Justin Beckham Cardona
 - Lina Seguro
+- Jorge Rodriguez
 
 ---
 
