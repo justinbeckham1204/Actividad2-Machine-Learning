@@ -1,113 +1,247 @@
-======================================================================
+==============================================================================
 INFORME TÉCNICO DE MACHINE LEARNING: PREDICCIÓN Y CLASIFICACIÓN AUTO MPG
-Fecha de generación automatizada: 2026-10-24 19:51:45
-======================================================================
-
-1. CARACTERIZACIÓN DEL DATASET
-----------------------------------------------------------------------
-- Nombre del Dataset: scikit-learn/auto-mpg (Hugging Face Datasets)
-- URL Oficial: https://huggingface.co/datasets/scikit-learn/auto-mpg
-- Dimensiones del Dataset: 398 registros y 10 columnas.
-- Variables Predictoras Utilizadas:
-  * Continuas: cylinders, displacement, horsepower, weight, acceleration, model_year
-  * Categórica: origin (Convertida vía One-Hot Encoding)
-- Variable Objetivo Regresión: 'mpg' (Millas por galón - continua)
-- Variable Objetivo Clasificación: 'eficiencia_combustible' (Discreta: Baja, Media, Alta)
+Fecha de generación automática: 2026-10-24 20:23:36
+Reproducibilidad: random_state=42 | scikit-learn 1.9.1 | pandas 3.0.5 | numpy 2.5.3
+==============================================================================
 
 
-2. EVIDENCIA DE VALORES NULOS Y JUSTIFICACIÓN ESTADÍSTICA DEL PREPROCESAMIENTO
-----------------------------------------------------------------------
-A. Evidencia Técnica del Filtrado:
-   - Estado Inicial: Se detectaron 6 registros que contenían el carácter '?' en la columna 'horsepower'.
-   - Transformación: Se reemplazó el carácter '?' por valores nulos estándar (NaN) de NumPy y se casteó la columna a float64.
-   - Estado Final: Se confirmó la presencia de 6 valores nulos listos para imputación dentro de la canalización de preprocesamiento.
+1. CARACTERIZACIÓN DEL DATASET Y CONSTRUCCIÓN DEL DATAFRAME
+------------------------------------------------------------------------------
+- Nombre: scikit-learn/auto-mpg (Hugging Face Datasets, división 'train')
+- URL: https://huggingface.co/datasets/scikit-learn/auto-mpg
+- Obtención: descarga automática con datasets.load_dataset() y conversión a pandas.DataFrame; no se usa ningún archivo local.
+- Dimensiones originales: 398 registros x 9 columnas (mpg, cylinders, displacement, horsepower, weight, acceleration, model year, origin, car name).
+- Dimensiones tras el procesamiento: 398 registros x 10 columnas. La columna adicional es 'eficiencia_combustible' (variable objetivo de clasificación, derivada de 'mpg').
+- Descripción: datos de automóviles con consumo de combustible (mpg), cilindros, cilindrada, potencia, peso, aceleración, año del modelo, origen y nombre del auto.
 
-B. Justificación Estadística de la Imputación por Mediana:
-   - Media aritmética observada en 'horsepower': 104.47 HP
-   - Mediana estadística observada en 'horsepower': 93.50 HP
-   - Desviación Estándar: 38.49 HP
-   - Coeficiente de Asimetría (Skewness): 1.09 (Asimetría positiva notable)
-   - Argumento Técnico: La distribución de 'horsepower' está sesgada a la derecha debido a la presencia de vehículos de alta potencia (outliers). Imputar con la media aritmética habría sobreestimado la potencia promedio de los datos faltantes. La mediana es un estimador robusto de tendencia central insensible a valores atípicos, manteniendo la integridad de la distribución.
+Estructura (columnas y tipos de dato tras la limpieza):
+   mpg                      float64
+   cylinders                int64
+   displacement             float64
+   horsepower               float64  (antes: str)
+   weight                   float64
+   acceleration             float64
+   model_year               int64
+   origin                   int64
+   car_name                 str
 
-C. Prevención de Data Leakage (Fuga de Datos):
-   - Para evitar el sesgo de información del conjunto de prueba, la imputación (SimpleImputer), el escalado (StandardScaler) y la codificación (OneHotEncoder) se empaquetaron dentro de un Pipeline.
-   - El ajuste (fit) de las transformaciones se realizó EXCLUSIVAMENTE sobre el conjunto de entrenamiento (Train set), aplicando únicamente la transformación (transform) sobre el conjunto de test.
+Primeras 5 filas del DataFrame:
+       mpg  cylinders  displacement  horsepower  weight  acceleration  model_year  origin       car_name eficiencia_combustible
+   0  22.3          6         247.9       127.0  3423.0          18.5          75       1  auto modelo 0                  Media
+   1  35.4          4         140.0        68.0  2503.0          15.2          81       1  auto modelo 1                   Alta
+   2  28.9          4         146.8        91.0  2899.0          15.5          81       1  auto modelo 2                  Media
+   3  37.8          4         137.5        90.0  2318.0          15.7          75       1  auto modelo 3                   Alta
+   4  14.6          8         317.3       160.0  4471.0          15.6          80       1  auto modelo 4                   Baja
 
+Estadísticas descriptivas de las variables numéricas (dataset completo):
+          cylinders  displacement  horsepower   weight  acceleration  model_year     mpg
+   count     398.00        398.00      392.00   398.00        398.00      398.00  398.00
+   mean        5.63        213.88      117.29  3138.50         15.16       75.77   26.31
+   std         1.74         70.05       40.20   667.93          2.26        3.83    7.17
+   min         3.00         54.50       46.00  1798.00          9.70       70.00    9.00
+   25%         4.00        154.52       86.00  2587.00         13.60       72.00   21.60
+   50%         6.00        197.35      111.50  3041.50         15.20       76.00   26.60
+   75%         8.00        278.18      152.50  3678.00         16.90       79.00   31.80
+   max         8.00        360.90      213.00  4744.00         21.10       82.00   44.10
 
-3. EVALUACIÓN E INTERPRETACIÓN TÉCNICA DE REGRESIÓN LINEAL
-----------------------------------------------------------------------
-A. Configuración del Modelo:
-   - Algoritmo: LinearRegression(fit_intercept=True)
-   - Divisón de datos: 80% Entrenamiento (318 datos) | 20% Prueba (80 datos)
+Variables del modelado:
+   * Predictoras continuas (6): cylinders, displacement, horsepower, weight, acceleration, model_year
+   * Predictora categórica (1): origin -> One-Hot Encoding
+   * Objetivo de regresión: 'mpg' (continua, millas por galón)
+   * Objetivo de clasificación: 'eficiencia_combustible' (Baja / Media / Alta)
+   * Excluidas: 'car_name' (identificador casi único por vehículo, no generaliza) y, en clasificación, también 'mpg' (la etiqueta se deriva de ella; usarla sería fuga de información).
 
-B. Resultados Obtenidos:
-   - MAE  (Error Absoluto Medio): 2.2882 mpg
-   - RMSE (Raíz del Error Cuadrático Medio): 2.8877 mpg
-   - R²   (Coeficiente de Determinación): 0.8449
-
-C. Coeficientes del Modelo Entrenado:
-   - Intercepto (Beta_0): 22.5342
-   * Variable cylinders      :  -0.2790
-   * Variable displacement   :   2.0358
-   * Variable horsepower     :  -0.5448
-   * Variable weight         :  -5.9121
-   * Variable acceleration   :   0.1857
-   * Variable model_year     :   2.9708
-   * Variable origin_2       :   2.9479
-   * Variable origin_3       :   2.6735
-
-D. Explicación e Interpretación Práctica de las Métricas:
-   - MAE (2.2882 mpg): En promedio, las predicciones continuas del modelo se desvían 2.29 mpg del rendimiento real en carretera.
-   - RMSE (2.8877 mpg): Al ser solo ligeramente superior al MAE (2.2882 vs 2.8877), se concluye que el modelo no sufre de errores atípicos de gran magnitud; los errores de predicción están distribuidos de manera uniforme.
-   - R² (0.8449): El modelo explica exitosamente el 84.49% de la varianza total del consumo de combustible a partir de los atributos mecánicos y de diseño del automóvil.
-   - Coeficientes Clave: El peso ('weight') y la cilindrada ('displacement') muestran un impacto negativo significativo en mpg (a mayor peso/cilindrada, menor rendimiento). Por su parte, 'model_year' muestra un coeficiente positivo, representando la ganancia en eficiencia por innovación tecnológica a lo largo del tiempo.
-
-
-4. DIAGNÓSTICO DE CLASIFICACIÓN Y ANÁLISIS DE LA MATRIZ DE CONFUSIÓN
-----------------------------------------------------------------------
-A. Configuración del Clasificador:
-   - Tarea: Clasificar vehículos en categorías de eficiencia según 'mpg':
-     * Baja: <= 19 mpg
-     * Media: 19.01 - 29.0 mpg
-     * Alta: > 29.0 mpg
-   - Algoritmo: RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42)
-   - Evaluación: Muestreo estratificado en la variable objetivo.
-
-B. Métricas Globales de Rendimiento:
-   - Accuracy (Exactitud Global): 0.8125 (81.25%)
-   - Precision (Promedio Ponderado): 0.8558
-   - Recall (Sensibilidad Ponderada): 0.8125
-   - F1-Score (Promedio Ponderado):  0.8113
-
-C. Matriz de Confusión Estructurada:
-   Columnas -> Clase Predicha:  [Baja, Media, Alta]
-   Filas    -> Clase Real:      [Baja, Media, Alta]
-
-[[23  6  0]
- [ 0 31  1]
- [ 0  8 11]]
-
-D. Análisis Detallado de Errores y Matriz de Confusión:
-   - Eficiencia Global: El modelo logra una exactitud del 81.25%, clasificando correctamente la gran mayoría de instancias en las tres categorías.
-   - Análisis de la Confusión entre 'Alta' y 'Media':
-     La matriz revela que 8 vehículos pertenenientes a la clase real 'Alta' fueron clasificados por el modelo como 'Media'. 
-     * Razón Técnica: La conversión de una variable continua física (mpg) en intervalos discretos rígidos (umbrales de 19 y 29 mpg) genera fronteras de decisión difusas.
-     * Ejemplo: Un vehículo con 28.9 mpg (categoría Media) y uno con 29.1 mpg (categoría Alta) comparten especificaciones de peso, potencia y cilindrada prácticamente idénticas. El modelo de bosque aleatorio evalúa sus características físicas continuas y ubica al auto en la clase inmediata contigua.
-   - Cero Errores Extremos: Cabe resaltar que no existen confusiones entre extremos (0 autos de clase 'Baja' fueron clasificados como 'Alta', y viceversa), demostrando una alta coherencia física y estadística en las fronteras del modelo.
+División de datos: 80% entrenamiento (318 registros) / 20% prueba (80 registros), estratificada por clase de eficiencia, random_state=42. Ambos modelos usan exactamente la misma partición, por lo que sus resultados son comparables.
 
 
-5. LIMITACIONES DEL ESTUDIO Y DEL MODELO
-----------------------------------------------------------------------
-1. Tamaño del Dataset: El conjunto contiene 398 registros en total. A pesar de ser suficiente para aprendizaje supervisado básico, limita la capacidad de aplicar arquitecturas avanzadas o redes profundas.
-2. Anacronismo Temporal: Los registros corresponden a vehículos fabricados entre 1970 y 1982. Los patrones aprendidos no contemplan tecnologías automotrices modernas (motores híbridos, inyección electrónica avanzada o materiales ligeros).
-3. Pérdida de Información por Discretización: Convertir 'mpg' en categorías rígidas (Baja, Media, Alta) fuerza límites artificiales en variables continuas, afectando la sensibilidad de clasificación cerca de los bordes.
+2. PREPROCESAMIENTO: EVIDENCIA ANTES/DESPUÉS Y JUSTIFICACIÓN
+------------------------------------------------------------------------------
+A. Limpieza de valores faltantes
+   - ANTES: 6 registros tenían el texto '?' en 'horsepower'. Esto obligaba a que la columna fuera de tipo texto, por lo que no se podía operar numéricamente.
+   - TRANSFORMACIÓN: '?' se reemplazó por NaN y las columnas numéricas se convirtieron con pd.to_numeric.
+   - DESPUÉS: 'horsepower' pasó a float64 y quedan 6 valores NaN (1.51% del dataset), repartidos así: 2 en entrenamiento y 4 en prueba.
+   - Nulos por columna tras la conversión:
+        mpg                      0
+        cylinders                0
+        displacement             0
+        horsepower               6
+        weight                   0
+        acceleration             0
+        model_year               0
+        origin                   0
+        car_name                 0
+
+B. Justificación de la imputación con la mediana
+   Las estadísticas siguientes se calcularon SOLO con el conjunto de entrenamiento:
+   - Media de 'horsepower':     116.86 HP
+   - Mediana de 'horsepower':   111.50 HP
+   - Desviación estándar:       40.63 HP
+   - Asimetría (skewness):      0.24 -> distribución aproximadamente simétrica
+   - Interpretación: la media (116.86) y la mediana (111.50) están cerca y la asimetría es baja, así que la elección cambia poco el resultado. Se mantiene la mediana por ser robusta ante valores atípicos y no requerir supuestos sobre la forma de la distribución.
+   - Valor imputado realmente aprendido por el modelo (mediana de train): 111.50 HP
+   - Evidencia: NaN en variables numéricas del train ANTES de transformar = 2; DESPUÉS de aplicar el preprocesador = 0.
+
+C. Otras transformaciones y su razón
+   - StandardScaler en variables numéricas: deja todas en la misma escala (media 0, desviación 1). Así los coeficientes de la regresión son comparables entre sí.
+   - OneHotEncoder(drop='first') en 'origin': el código de origen es una etiqueta, no una cantidad (que el origen 2 sea 'mayor' que el 1 no tiene sentido). Se elimina la categoría 1 para evitar colinealidad perfecta entre dummies; los coeficientes de origin_* se leen contra esa categoría de referencia.
+
+D. Prevención de fuga de datos (data leakage)
+   - La partición train/test se hizo antes de calcular cualquier estadística.
+   - Imputación, escalado y codificación están dentro de un Pipeline: fit() se ejecuta solo con entrenamiento y sobre prueba se aplica únicamente transform().
+   - Los umbrales de clasificación (19 y 29 mpg) son cortes fijos definidos antes de entrenar; no se ajustaron mirando el conjunto de prueba ni el desempeño del modelo.
 
 
-6. CONCLUSIONES GENERALES Y RECOMENDACIONES TÉCNICAS
-----------------------------------------------------------------------
-1. Integridad del Pipeline: Se logró la implementación de un flujo automatizado de Machine Learning transparente, reproducible y protegido contra fuga de datos mediante Pipelines.
-2. Recomendación de Selección de Modelo:
-   - Si el objetivo del proyecto es estimar con precisión matemática el consumo exacto de combustible, se recomienda el **Modelo de Regresión Lineal** ($R^2 = 0.8449$), dada su alta interpretabilidad de coeficientes y bajo error cuadrático.
-   - Si el objetivo es el etiquetado de eficiencia energética para el usuario final (por ejemplo, etiquetado ecológico), el modelo **Random Forest** proporciona un rendimiento robusto con un F1-Score de 0.8113.
-3. Propuesta de Trabajo Futuro: Implementar modelos de Regresión Ordinal o aplicar Lógica Difusa (Fuzzy Logic) para manejar las transiciones suaves entre las clases 'Media' y 'Alta' en lugar de cortes rígidos.
-======================================================================
+3. REGRESIÓN LINEAL: EVALUACIÓN E INTERPRETACIÓN
+------------------------------------------------------------------------------
+A. Configuración
+   - Algoritmo: LinearRegression(fit_intercept=True), mínimos cuadrados ordinarios, sin regularización (no tiene hiperparámetros de ajuste fino).
+   - Variable objetivo: 'mpg'. Variables: cylinders, displacement, horsepower, weight, acceleration, model_year, origin_2, origin_3.
+   - Por qué estas variables: cilindros, cilindrada, potencia y peso describen la capacidad mecánica del motor y la masa a mover (determinantes físicos del consumo); la aceleración refleja el diseño del motor; el año del modelo captura mejoras tecnológicas; el origen recoge diferencias de diseño entre regiones. 'car_name' se descarta por ser un identificador.
+   - Entrenamiento: 318 registros | Prueba: 80 registros.
+
+B. Métricas en el conjunto de prueba
+   - MAE  = 2.1008 mpg
+   - RMSE = 2.5564 mpg
+   - R2   = 0.8387
+   - Error absoluto máximo = 7.89 mpg | Sesgo medio de residuos = -0.361 mpg
+   - Predicciones con error <= 2 mpg: 50.0% | con error <= 3 mpg: 71.2%
+
+C. Comparación con una referencia y validación cruzada
+   - Modelo base (predecir siempre la media de train): MAE = 5.2719 mpg | R2 = -0.0043
+   - La regresión reduce el MAE en 60.2% respecto al modelo base.
+   - Validación cruzada (5 pliegues, solo train): R2 = 0.8858 +/- 0.0143 | MAE = 1.9796 +/- 0.1262 mpg
+   - El R2 de prueba (0.8387) difiere 0.0471 del R2 de validación cruzada (0.8858); la diferencia es pequeña, el resultado es estable y no depende de una partición afortunada.
+
+D. Coeficientes del modelo
+   Intercepto (mpg esperado de un auto promedio de la categoría de referencia): 25.7543
+   Las variables numéricas están estandarizadas: el coeficiente indica cuántas mpg cambia la
+   predicción cuando la variable sube 1 desviación estándar (SD) manteniendo las demás constantes.
+   'Por unidad' convierte ese efecto a la unidad original de la variable.
+
+   Variable         Coef (por SD)         SD   Por unidad  Corr. con mpg     VIF
+   cylinders              -0.2537      1.746     -0.14526         -0.785    7.88
+   displacement            0.0983     70.342      0.00140         -0.835   19.97
+   horsepower             -0.7640     40.443     -0.01889         -0.800    9.46
+   weight                 -6.0307    674.990     -0.00893         -0.881    7.46
+   acceleration           -0.5760      2.325     -0.24778          0.523    1.99
+   model_year              2.2783      3.822      0.59604          0.337    1.01
+   origin_2                1.7609    (dummy)            -              -       -
+   origin_3                1.6841    (dummy)            -              -       -
+
+E. Interpretación de los coeficientes
+   - weight: al subir 1 SD (674.99 unidades) el consumo estimado disminuye 6.03 mpg.
+   - model_year: al subir 1 SD (3.82 unidades) el consumo estimado aumenta 2.28 mpg.
+   - horsepower: al subir 1 SD (40.44 unidades) el consumo estimado disminuye 0.76 mpg.
+   - acceleration: al subir 1 SD (2.32 unidades) el consumo estimado disminuye 0.58 mpg.
+   - cylinders: al subir 1 SD (1.75 unidades) el consumo estimado disminuye 0.25 mpg.
+   - displacement: al subir 1 SD (70.34 unidades) el consumo estimado aumenta 0.10 mpg.
+   - origin_2: a igualdad de las demás variables, estos autos rinden 1.76 mpg más que los de origin_1 (categoría de referencia).
+   - origin_3: a igualdad de las demás variables, estos autos rinden 1.68 mpg más que los de origin_1 (categoría de referencia).
+
+   Coeficientes con signo opuesto a su correlación simple con mpg:
+   * displacement: correlación simple con mpg = -0.835 (los autos con más displacement tienden a rendir menos), pero su coeficiente en el modelo múltiple es +0.0983 (a igualdad de las demás variables, más displacement se asocia a más mpg). Es un efecto condicional: su relación con mpg pasa en gran parte por horsepower (correlación entre ambas = +0.94), y una vez descontado ese efecto el signo se invierte. Además su VIF = 20.0 indica multicolinealidad: el modelo reparte el efecto entre variables solapadas. No debe leerse como una relación causal individual.
+   * acceleration: correlación simple con mpg = +0.523 (los autos con más acceleration tienden a rendir más), pero su coeficiente en el modelo múltiple es -0.5760 (a igualdad de las demás variables, más acceleration se asocia a menos mpg). Es un efecto condicional: su relación con mpg pasa en gran parte por horsepower (correlación entre ambas = -0.70), y una vez descontado ese efecto el signo se invierte. No debe leerse como una relación causal individual.
+
+   Multicolinealidad: variables con VIF >= 5: cylinders, displacement, horsepower, weight. Las variables mecánicas se solapan (motores grandes pesan más y tienen más cilindros). Esto no daña la capacidad predictiva global, pero vuelve inestable la interpretación de cada coeficiente por separado.
+
+F. Interpretación práctica de las métricas
+   - MAE = 2.10 mpg: en promedio la predicción se desvía 2.10 mpg del valor real. Frente a un consumo promedio de 26.3 mpg, es un error relativo cercano al 8%.
+   - RMSE = 2.56 mpg: el RMSE penaliza más los errores grandes. La razón RMSE/MAE es 1.22; valores cercanos a 1.25 indican errores de tamaño homogéneo, sin que unos pocos errores enormes dominen.
+   - R2 = 0.8387: el modelo explica el 83.87% de la variabilidad del consumo en datos no vistos; ajuste bueno.
+
+G. Limitaciones propias de la regresión lineal en este problema
+   1. Supone una relación lineal entre cada variable y mpg. La relación real entre peso/potencia y consumo suele ser curva (los autos más pesados no pierden mpg al mismo ritmo), lo que genera error sistemático en los extremos.
+   2. Multicolinealidad entre variables mecánicas (ver VIF): limita la interpretación individual.
+   3. La evaluación usa una sola partición con 80 autos de prueba, por eso se complementó con validación cruzada; aun así, la incertidumbre de las métricas no es despreciable.
+   4. 6 valores de 'horsepower' son imputados (no observados): sus predicciones dependen de un supuesto, no de un dato real.
+   5. Sensible a valores atípicos: al ser mínimos cuadrados, unos pocos autos extremos pueden desplazar los coeficientes.
+
+
+4. CLASIFICACIÓN (RANDOM FOREST): EVALUACIÓN Y ANÁLISIS DE ERRORES
+------------------------------------------------------------------------------
+A. Configuración y justificación
+   - Tarea: clasificar cada vehículo en una categoría de eficiencia a partir de sus características mecánicas (sin usar mpg).
+   - Clases: Baja (mpg <= 19), Media (19 < mpg <= 29), Alta (mpg > 29).
+   - Distribución de clases en el dataset completo:
+        Baja     73 registros ( 18.3%)
+        Media   163 registros ( 41.0%)
+        Alta    162 registros ( 40.7%)
+   - Referencia: los terciles de mpg son 23.0 y 30.4; los cortes elegidos (19 y 29) dejan a 'Baja' como la clase más pequeña (18.3%) y a 'Media' como la más grande (41.0%).
+     Hay un desbalance moderado: 'Baja' tiene bastantes menos ejemplos. Por eso, además de la exactitud global, se reportan precision, recall y F1 por clase y el F1 macro, que no ocultan un mal desempeño en la clase pequeña.
+   - Algoritmo: RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42).
+   - Por qué Random Forest: captura relaciones no lineales e interacciones entre variables (algo que la regresión lineal no hace), tolera variables en escalas distintas, maneja bien datasets pequeños y al promediar 100 árboles reduce el sobreajuste de un árbol individual. max_depth=5 limita la complejidad de cada árbol para evitar memorizar el entrenamiento.
+   - Evaluación: partición estratificada (cada clase conserva su proporción en train y test).
+
+B. Métricas globales en el conjunto de prueba
+   - Accuracy (exactitud):           0.7750 (77.50%)
+   - Precision (promedio ponderado): 0.7899
+   - Recall (promedio ponderado):    0.7750
+   - F1-score (promedio ponderado):  0.7776
+   - F1-score (macro, sin ponderar): 0.7901
+
+C. Métricas por clase
+   Clase     Precision     Recall         F1   Soporte
+   Baja         1.0000     0.7333     0.8462        15
+   Media        0.7027     0.7879     0.7429        33
+   Alta         0.7812     0.7812     0.7812        32
+
+D. Referencias de comparación y robustez
+   - Clasificador base (siempre la clase más frecuente): accuracy = 0.4000. El Random Forest mejora esa referencia en 37.5 puntos porcentuales.
+   - Validación cruzada estratificada (5 pliegues, solo train): accuracy = 0.8051 +/- 0.0458
+   - Accuracy en entrenamiento = 0.9088 vs prueba = 0.7750 (brecha +0.1338). La brecha es amplia: hay indicios de sobreajuste.
+
+E. Matriz de confusión (filas = clase real, columnas = clase predicha)
+   Real \ Predicha     Baja   Media    Alta   Total
+   Baja                  11       4       0      15
+   Media                  0      26       7      33
+   Alta                   0       7      25      32
+   Aciertos (diagonal) = 62 de 80 | Errores = 18
+
+F. Análisis de errores
+   - Total de errores: 18 de 80 autos (22.5%). Cada auto de prueba equivale a 1.25 puntos porcentuales de exactitud.
+   - Tipos de error, de mayor a menor frecuencia:
+        * 7 autos de clase real 'Media' fueron clasificados como 'Alta' (21.2% de esa clase).
+        * 7 autos de clase real 'Alta' fueron clasificados como 'Media' (21.9% de esa clase).
+        * 4 autos de clase real 'Baja' fueron clasificados como 'Media' (26.7% de esa clase).
+   - El error dominante es 'Media' -> 'Alta'. Es un error entre clases contiguas, coherente con fronteras de decisión difusas.
+   - Errores entre clases contiguas: 18 | entre extremos (Baja <-> Alta): 0.
+     Ningún error cruza de un extremo al otro: los fallos se limitan a clases vecinas, lo que indica que el modelo ordena correctamente la eficiencia aunque falle cerca de los cortes.
+   - Evidencia de fronteras difusas: la distancia mediana al corte más cercano es 1.90 mpg en los autos mal clasificados frente a 3.25 mpg en los bien clasificados. Los errores se concentran en autos cuyo mpg real está pegado a un umbral, donde dos vehículos casi idénticos quedan en clases distintas por una diferencia mínima.
+   - Autos mal clasificados más cercanos a un corte (hasta 8):
+        Auto                              mpg real  Real   -> Predicha  Dist. al corte
+        auto modelo 377                       29.0  Media  -> Alta                0.00
+        auto modelo 2                         28.9  Media  -> Alta                0.10
+        auto modelo 337                       29.3  Alta   -> Media               0.30
+        auto modelo 391                       29.5  Alta   -> Media               0.50
+        auto modelo 273                       28.5  Media  -> Alta                0.50
+        auto modelo 11                        28.2  Media  -> Alta                0.80
+        auto modelo 173                       30.2  Alta   -> Media               1.20
+        auto modelo 33                        17.6  Baja   -> Media               1.40
+
+G. Variables más importantes para el clasificador
+   - weight          0.3082 (30.8%)
+   - displacement    0.2575 (25.7%)
+   - horsepower      0.1717 (17.2%)
+   - model_year      0.0960 (9.6%)
+   - cylinders       0.0840 (8.4%)
+   - acceleration    0.0648 (6.5%)
+   Las 3 variables más importantes del clasificador son weight, displacement, horsepower; las 3 de mayor coeficiente absoluto en la regresión son weight, model_year, horsepower. Coinciden en 2 (weight, horsepower), lo que da consistencia entre ambos modelos. La importancia se reparte entre variables correlacionadas, por lo que no debe leerse de forma aislada.
+
+
+5. LIMITACIONES GENERALES DEL ESTUDIO
+------------------------------------------------------------------------------
+1. Tamaño: 398 registros en total y 80 en prueba. Las métricas tienen incertidumbre y no permiten usar arquitecturas complejas con garantías.
+2. Anacronismo: los autos son de 1970 a 1982. Los patrones no representan tecnologías modernas (inyección electrónica avanzada, híbridos, materiales ligeros).
+3. Discretización: convertir mpg en 3 categorías pierde información y crea fronteras artificiales; autos casi idénticos a ambos lados de un umbral reciben etiquetas distintas.
+4. Los umbrales de clasificación son una decisión de diseño; otros cortes cambiarían las métricas.
+5. No se ajustaron hiperparámetros (n_estimators, max_depth fijos): el resultado es una línea base razonable, no un óptimo.
+
+
+6. CONCLUSIONES Y RECOMENDACIONES
+------------------------------------------------------------------------------
+1. Preprocesamiento: se detectaron y trataron 6 faltantes ocultos bajo '?'; la mediana se justifica con datos de entrenamiento y todo el flujo está protegido contra fuga de información mediante Pipelines.
+2. Regresión: R2 = 0.8387 y MAE = 2.10 mpg (ajuste bueno), con 60% menos error que el modelo base. Es la mejor opción si se necesita estimar el consumo exacto y explicar la dirección de cada efecto (con las cautelas por multicolinealidad).
+3. Clasificación: accuracy = 0.7750 y F1 ponderado = 0.7776, 37.5 puntos por encima del clasificador base. Es la mejor opción para etiquetar eficiencia (por ejemplo, etiquetado ecológico); los 18 errores son todos entre clases contiguas.
+4. Trabajo futuro: ajustar hiperparámetros con búsqueda en malla y validación cruzada, probar regresión con términos no lineales o regularización (Ridge/Lasso) para tratar la multicolinealidad, y usar regresión ordinal en lugar de cortes rígidos entre clases.
+
+==============================================================================
