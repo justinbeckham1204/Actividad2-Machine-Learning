@@ -285,3 +285,71 @@ y los reportes en:
 ```text
 src/carga_datos/reportes/
 ```
+
+# Actividad 2: Modelos de Predicción y Clasificación con Machine Learning
+
+## 👥 Autores
+
+- Justin Beckham Cardona
+- Lina Seguro
+
+---
+
+## 📌 Dataset Utilizado
+
+- **Nombre:** `scikit-learn/auto-mpg` (Hugging Face)
+- **URL:** [https://huggingface.co/datasets/scikit-learn/auto-mpg](https://huggingface.co/datasets/scikit-learn/auto-mpg)
+
+---
+
+## 🚀 Instrucciones de Ejecución Local
+
+1. **Instalar dependencias:**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Ejecutar el script principal:**
+
+   ```bash
+   python src/main.py
+   ```
+
+3. **Ejecutar el Notebook:**
+
+   Abrir `actividad_2_ml.ipynb` y seleccionar **"Run All"**.
+
+---
+
+## 🔄 Integración Continua (GitHub Actions)
+
+Este repositorio ejecuta automáticamente el pipeline en `.github/workflows/ml_pipeline.yml` y genera el archivo `resumen_modelos.txt` como artefacto descargable en la pestaña **Actions**.
+
+---
+
+## 🔗 Vincular y subir el proyecto a un nuevo repositorio
+
+Abre la terminal de VS Code y ejecuta los siguientes comandos uno a uno:
+
+1. **Generar el nuevo informe local:**
+
+   ```bash
+   python src/main.py
+   ```
+
+2. **Cambiar la dirección remota al nuevo repositorio:**
+
+   ```bash
+   git remote remove origin
+   git remote add origin https://github.com/justinbeckham1204/Actividad2-Machine-Learning.git
+   ```
+
+3. **Subir los cambios al nuevo repositorio:**
+
+   ```bash
+   git branch -M main
+   git add .
+   git commit -m "feat: incluye las 5 mejoras de la rubrica y conecta nuevo repositorio"
+   git push -u origin main
+   ```

@@ -1,45 +1,113 @@
 ======================================================================
-RESUMEN AUTOMÁTICO DE EJECUCIÓN DE MODELOS DE MACHINE LEARNING
-Fecha de ejecución: 2026-10-24 10:01:53
+INFORME TÉCNICO DE MACHINE LEARNING: PREDICCIÓN Y CLASIFICACIÓN AUTO MPG
+Fecha de generación automatizada: 2026-10-24 19:51:45
 ======================================================================
 
-1. IDENTIFICACIÓN DEL DATASET Y PREPROCESAMIENTO
+1. CARACTERIZACIÓN DEL DATASET
 ----------------------------------------------------------------------
-- Dataset ID: scikit-learn/auto-mpg (Hugging Face)
-- Enlace: https://huggingface.co/datasets/scikit-learn/auto-mpg
-- Registros totales: 398 | Columnas: 10
-- Preprocesamiento: Imputación por mediana en 'horsepower', escalado
-  estándar en variables continuas y One-Hot Encoding en 'origin'.
-- Prevención de Data Leakage: Transformaciones ajustadas solo en Train set.
+- Nombre del Dataset: scikit-learn/auto-mpg (Hugging Face Datasets)
+- URL Oficial: https://huggingface.co/datasets/scikit-learn/auto-mpg
+- Dimensiones del Dataset: 398 registros y 10 columnas.
+- Variables Predictoras Utilizadas:
+  * Continuas: cylinders, displacement, horsepower, weight, acceleration, model_year
+  * Categórica: origin (Convertida vía One-Hot Encoding)
+- Variable Objetivo Regresión: 'mpg' (Millas por galón - continua)
+- Variable Objetivo Clasificación: 'eficiencia_combustible' (Discreta: Baja, Media, Alta)
 
-2. MODELO DE REGRESIÓN LINEAL
-----------------------------------------------------------------------
-- Objetivo: Estimar la eficiencia continua de combustible en mpg.
-- Variable Objetivo: mpg
-- Predictoras: cylinders, displacement, horsepower, weight, acceleration, model_year, origin
-- Algoritmo: LinearRegression
-- Métricas:
-  * MAE:  2.2882 mpg
-  * RMSE: 2.8877 mpg
-  * R²:   0.8449
 
-3. MODELO DE CLASIFICACIÓN
+2. EVIDENCIA DE VALORES NULOS Y JUSTIFICACIÓN ESTADÍSTICA DEL PREPROCESAMIENTO
 ----------------------------------------------------------------------
-- Objetivo: Clasificar categoría de eficiencia (Baja, Media, Alta).
-- Variable Objetivo: eficiencia_combustible (Baja <= 19, Media 19-29, Alta > 29)
-- Predictoras: Mismas variables que regresión (se excluyó 'mpg' por Data Leakage).
-- Algoritmo: RandomForestClassifier (n_estimators=100, max_depth=5)
-- Métricas:
-  * Accuracy:  0.8125
-  * Precision: 0.8558
-  * Recall:    0.8125
-  * F1-Score:  0.8113
-- Matriz de Confusión:
+A. Evidencia Técnica del Filtrado:
+   - Estado Inicial: Se detectaron 6 registros que contenían el carácter '?' en la columna 'horsepower'.
+   - Transformación: Se reemplazó el carácter '?' por valores nulos estándar (NaN) de NumPy y se casteó la columna a float64.
+   - Estado Final: Se confirmó la presencia de 6 valores nulos listos para imputación dentro de la canalización de preprocesamiento.
+
+B. Justificación Estadística de la Imputación por Mediana:
+   - Media aritmética observada en 'horsepower': 104.47 HP
+   - Mediana estadística observada en 'horsepower': 93.50 HP
+   - Desviación Estándar: 38.49 HP
+   - Coeficiente de Asimetría (Skewness): 1.09 (Asimetría positiva notable)
+   - Argumento Técnico: La distribución de 'horsepower' está sesgada a la derecha debido a la presencia de vehículos de alta potencia (outliers). Imputar con la media aritmética habría sobreestimado la potencia promedio de los datos faltantes. La mediana es un estimador robusto de tendencia central insensible a valores atípicos, manteniendo la integridad de la distribución.
+
+C. Prevención de Data Leakage (Fuga de Datos):
+   - Para evitar el sesgo de información del conjunto de prueba, la imputación (SimpleImputer), el escalado (StandardScaler) y la codificación (OneHotEncoder) se empaquetaron dentro de un Pipeline.
+   - El ajuste (fit) de las transformaciones se realizó EXCLUSIVAMENTE sobre el conjunto de entrenamiento (Train set), aplicando únicamente la transformación (transform) sobre el conjunto de test.
+
+
+3. EVALUACIÓN E INTERPRETACIÓN TÉCNICA DE REGRESIÓN LINEAL
+----------------------------------------------------------------------
+A. Configuración del Modelo:
+   - Algoritmo: LinearRegression(fit_intercept=True)
+   - Divisón de datos: 80% Entrenamiento (318 datos) | 20% Prueba (80 datos)
+
+B. Resultados Obtenidos:
+   - MAE  (Error Absoluto Medio): 2.2882 mpg
+   - RMSE (Raíz del Error Cuadrático Medio): 2.8877 mpg
+   - R²   (Coeficiente de Determinación): 0.8449
+
+C. Coeficientes del Modelo Entrenado:
+   - Intercepto (Beta_0): 22.5342
+   * Variable cylinders      :  -0.2790
+   * Variable displacement   :   2.0358
+   * Variable horsepower     :  -0.5448
+   * Variable weight         :  -5.9121
+   * Variable acceleration   :   0.1857
+   * Variable model_year     :   2.9708
+   * Variable origin_2       :   2.9479
+   * Variable origin_3       :   2.6735
+
+D. Explicación e Interpretación Práctica de las Métricas:
+   - MAE (2.2882 mpg): En promedio, las predicciones continuas del modelo se desvían 2.29 mpg del rendimiento real en carretera.
+   - RMSE (2.8877 mpg): Al ser solo ligeramente superior al MAE (2.2882 vs 2.8877), se concluye que el modelo no sufre de errores atípicos de gran magnitud; los errores de predicción están distribuidos de manera uniforme.
+   - R² (0.8449): El modelo explica exitosamente el 84.49% de la varianza total del consumo de combustible a partir de los atributos mecánicos y de diseño del automóvil.
+   - Coeficientes Clave: El peso ('weight') y la cilindrada ('displacement') muestran un impacto negativo significativo en mpg (a mayor peso/cilindrada, menor rendimiento). Por su parte, 'model_year' muestra un coeficiente positivo, representando la ganancia en eficiencia por innovación tecnológica a lo largo del tiempo.
+
+
+4. DIAGNÓSTICO DE CLASIFICACIÓN Y ANÁLISIS DE LA MATRIZ DE CONFUSIÓN
+----------------------------------------------------------------------
+A. Configuración del Clasificador:
+   - Tarea: Clasificar vehículos en categorías de eficiencia según 'mpg':
+     * Baja: <= 19 mpg
+     * Media: 19.01 - 29.0 mpg
+     * Alta: > 29.0 mpg
+   - Algoritmo: RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42)
+   - Evaluación: Muestreo estratificado en la variable objetivo.
+
+B. Métricas Globales de Rendimiento:
+   - Accuracy (Exactitud Global): 0.8125 (81.25%)
+   - Precision (Promedio Ponderado): 0.8558
+   - Recall (Sensibilidad Ponderada): 0.8125
+   - F1-Score (Promedio Ponderado):  0.8113
+
+C. Matriz de Confusión Estructurada:
+   Columnas -> Clase Predicha:  [Baja, Media, Alta]
+   Filas    -> Clase Real:      [Baja, Media, Alta]
+
 [[23  6  0]
  [ 0 31  1]
  [ 0  8 11]]
 
-4. CONCLUSIONES
+D. Análisis Detallado de Errores y Matriz de Confusión:
+   - Eficiencia Global: El modelo logra una exactitud del 81.25%, clasificando correctamente la gran mayoría de instancias en las tres categorías.
+   - Análisis de la Confusión entre 'Alta' y 'Media':
+     La matriz revela que 8 vehículos pertenenientes a la clase real 'Alta' fueron clasificados por el modelo como 'Media'. 
+     * Razón Técnica: La conversión de una variable continua física (mpg) en intervalos discretos rígidos (umbrales de 19 y 29 mpg) genera fronteras de decisión difusas.
+     * Ejemplo: Un vehículo con 28.9 mpg (categoría Media) y uno con 29.1 mpg (categoría Alta) comparten especificaciones de peso, potencia y cilindrada prácticamente idénticas. El modelo de bosque aleatorio evalúa sus características físicas continuas y ubica al auto en la clase inmediata contigua.
+   - Cero Errores Extremos: Cabe resaltar que no existen confusiones entre extremos (0 autos de clase 'Baja' fueron clasificados como 'Alta', y viceversa), demostrando una alta coherencia física y estadística en las fronteras del modelo.
+
+
+5. LIMITACIONES DEL ESTUDIO Y DEL MODELO
 ----------------------------------------------------------------------
-- Ambos modelos responden eficazmente al problema planteado sobre el dataset Auto-MPG.
+1. Tamaño del Dataset: El conjunto contiene 398 registros en total. A pesar de ser suficiente para aprendizaje supervisado básico, limita la capacidad de aplicar arquitecturas avanzadas o redes profundas.
+2. Anacronismo Temporal: Los registros corresponden a vehículos fabricados entre 1970 y 1982. Los patrones aprendidos no contemplan tecnologías automotrices modernas (motores híbridos, inyección electrónica avanzada o materiales ligeros).
+3. Pérdida de Información por Discretización: Convertir 'mpg' en categorías rígidas (Baja, Media, Alta) fuerza límites artificiales en variables continuas, afectando la sensibilidad de clasificación cerca de los bordes.
+
+
+6. CONCLUSIONES GENERALES Y RECOMENDACIONES TÉCNICAS
+----------------------------------------------------------------------
+1. Integridad del Pipeline: Se logró la implementación de un flujo automatizado de Machine Learning transparente, reproducible y protegido contra fuga de datos mediante Pipelines.
+2. Recomendación de Selección de Modelo:
+   - Si el objetivo del proyecto es estimar con precisión matemática el consumo exacto de combustible, se recomienda el **Modelo de Regresión Lineal** ($R^2 = 0.8449$), dada su alta interpretabilidad de coeficientes y bajo error cuadrático.
+   - Si el objetivo es el etiquetado de eficiencia energética para el usuario final (por ejemplo, etiquetado ecológico), el modelo **Random Forest** proporciona un rendimiento robusto con un F1-Score de 0.8113.
+3. Propuesta de Trabajo Futuro: Implementar modelos de Regresión Ordinal o aplicar Lógica Difusa (Fuzzy Logic) para manejar las transiciones suaves entre las clases 'Media' y 'Alta' en lugar de cortes rígidos.
 ======================================================================
