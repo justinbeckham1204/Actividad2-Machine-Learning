@@ -1,6 +1,5 @@
 ==============================================================================
 INFORME TÉCNICO DE MACHINE LEARNING: PREDICCIÓN Y CLASIFICACIÓN AUTO MPG
-Fecha de generación automática: 2026-10-24 20:23:36
 Reproducibilidad: random_state=42 | scikit-learn 1.9.1 | pandas 3.0.5 | numpy 2.5.3
 ==============================================================================
 
