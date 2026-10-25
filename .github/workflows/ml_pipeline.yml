@@ -24,11 +24,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Ejecutar modelos
+    - name: Ejecutar script de ML y generar reporte
       run: |
         python src/main.py
 
-    - name: Subir artefacto resumen .txt
+    - name: Subir reporte como artefacto
       uses: actions/upload-artifact@v4
       with:
         name: resumen-modelos-ml
